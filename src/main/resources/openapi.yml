@@ -798,56 +798,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-    post:
-      tags:
-        - pet
-      operationId: addPet
-      summary: Create a pet
-      description: Creates a pet .
-      requestBody:
-        description: The pet
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Pet'
-        required: true
-      responses:
-        201:
-          description: Pet type created successfully.
-          headers:
-            ETag:
-              description: An ID for this version of the response.
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        304:
-          description: Not modified.
-          headers:
-            ETag:
-              description: An ID for this version of the response.
-              schema:
-                type: string
-        400:
-          description: Bad request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        404:
-          description: Pet not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        500:
-          description: Server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
   /pets/{petId}:
     get:
       tags:
@@ -1174,7 +1124,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Visit'
+              $ref: '#/components/schemas/VisitFields'
         required: true
       responses:
         200:
@@ -1924,7 +1874,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          pattern: '^[a-zA-Z]*$'
+          pattern: "^[\\p{L}]+([ '-][\\p{L}]+){0,2}$"
           example: George
         lastName:
           title: Last name
@@ -1932,7 +1882,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          pattern: '^[a-zA-Z]*$'
+          pattern: "^[\\p{L}]+([ '-][\\p{L}]+){0,2}\\.?$"
           example: Franklin
         address:
           title: Address
@@ -2003,6 +1953,7 @@ components:
           type: string
           format: date
           example: '2010-09-07'
+          x-field-extra-annotation: "@org.springframework.samples.petclinic.rest.validation.PetAgeValidation"
         type:
           $ref: '#/components/schemas/PetType'
       required:
@@ -2054,7 +2005,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          pattern: '^[a-zA-Z]*$'
+          pattern: "^[\\p{L}]+([ '-][\\p{L}]+){0,2}$"
           example: 'James'
         lastName:
           title: Last name
@@ -2062,7 +2013,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          pattern: '^[a-zA-Z]*$'
+          pattern: "^[\\p{L}]+([ '-][\\p{L}]+){0,2}\\.?$"
           example: 'Carter'
         specialties:
           title: Specialties
@@ -2136,9 +2087,9 @@ components:
               format: int32
               minimum: 0
               example: 1
-              readOnly: true
           required:
             - id
+            - petId
     PetTypeFields:
       title: PetType fields
       description: Editable fields of a pet type.

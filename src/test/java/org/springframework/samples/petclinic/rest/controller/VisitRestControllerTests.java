@@ -16,9 +16,7 @@
 
 package org.springframework.samples.petclinic.rest.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -166,8 +164,6 @@ class VisitRestControllerTests {
     	Visit newVisit = visits.get(0);
     	newVisit.setId(999);
     	ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisitDto(newVisit));
     	System.out.println("newVisitAsJSON " + newVisitAsJSON);
     	this.mockMvc.perform(post("/api/visits")
@@ -182,7 +178,6 @@ class VisitRestControllerTests {
     	newVisit.setId(null);
         newVisit.setDescription(null);
     	ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisitDto(newVisit));
     	this.mockMvc.perform(post("/api/visits")
         		.content(newVisitAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -196,8 +191,6 @@ class VisitRestControllerTests {
     	Visit newVisit = visits.get(0);
     	newVisit.setDescription("rabies shot test");
     	ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisitDto(newVisit));
     	this.mockMvc.perform(put("/api/visits/2")
     		.content(newVisitAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -218,7 +211,6 @@ class VisitRestControllerTests {
     	Visit newVisit = visits.get(0);
         newVisit.setDescription(null);
     	ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisitDto(newVisit));
     	this.mockMvc.perform(put("/api/visits/2")
     		.content(newVisitAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -230,7 +222,6 @@ class VisitRestControllerTests {
     void testDeleteVisitSuccess() throws Exception {
     	Visit newVisit = visits.get(0);
     	ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisitDto(newVisit));
     	given(this.clinicService.findVisitById(2)).willReturn(visits.get(0));
     	this.mockMvc.perform(delete("/api/visits/2")
@@ -243,7 +234,6 @@ class VisitRestControllerTests {
     void testDeleteVisitError() throws Exception {
     	Visit newVisit = visits.get(0);
     	ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisitDto(newVisit));
         given(this.clinicService.findVisitById(999)).willReturn(null);
         this.mockMvc.perform(delete("/api/visits/999")

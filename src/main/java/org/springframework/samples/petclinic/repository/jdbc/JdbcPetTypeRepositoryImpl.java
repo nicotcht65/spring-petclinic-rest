@@ -16,7 +16,6 @@
 
 package org.springframework.samples.petclinic.repository.jdbc;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +23,7 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -44,6 +43,7 @@ import org.springframework.stereotype.Repository;
  *
  */
 
+@DependsOnDatabaseInitialization
 @Repository
 @Profile("jdbc")
 public class JdbcPetTypeRepositoryImpl implements PetTypeRepository {
@@ -52,7 +52,6 @@ public class JdbcPetTypeRepositoryImpl implements PetTypeRepository {
 
 	private SimpleJdbcInsert insertPetType;
 
-	@Autowired
 	public JdbcPetTypeRepositoryImpl(DataSource dataSource) {
 		this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
 		this.insertPetType = new SimpleJdbcInsert(dataSource)
@@ -115,31 +114,31 @@ public class JdbcPetTypeRepositoryImpl implements PetTypeRepository {
 
 	@Override
 	public void delete(PetType petType) throws DataAccessException {
-		Map<String, Object> pettype_params = new HashMap<>();
-		pettype_params.put("id", petType.getId());
-		List<Pet> pets = new ArrayList<Pet>();
+		Map<String, Object> pettypeParams = new HashMap<>();
+		pettypeParams.put("id", petType.getId());
+		List<Pet> pets;
 		pets = this.namedParameterJdbcTemplate.
     			query("SELECT pets.id, name, birth_date, type_id, owner_id FROM pets WHERE type_id=:id",
-    			pettype_params,
+    			pettypeParams,
     			BeanPropertyRowMapper.newInstance(Pet.class));
 		// cascade delete pets
 		for (Pet pet : pets){
-			Map<String, Object> pet_params = new HashMap<>();
-			pet_params.put("id", pet.getId());
-			List<Visit> visits = new ArrayList<Visit>();
+			Map<String, Object> petParams = new HashMap<>();
+			petParams.put("id", pet.getId());
+			List<Visit> visits;
 			visits = this.namedParameterJdbcTemplate.query(
 		            "SELECT id, pet_id, visit_date, description FROM visits WHERE pet_id = :id",
-		            pet_params,
+		            petParams,
 		            BeanPropertyRowMapper.newInstance(Visit.class));
 	        // cascade delete visits
 	        for (Visit visit : visits){
-	        	Map<String, Object> visit_params = new HashMap<>();
-	        	visit_params.put("id", visit.getId());
-	        	this.namedParameterJdbcTemplate.update("DELETE FROM visits WHERE id=:id", visit_params);
+	        	Map<String, Object> visitParams = new HashMap<>();
+	        	visitParams.put("id", visit.getId());
+	        	this.namedParameterJdbcTemplate.update("DELETE FROM visits WHERE id=:id", visitParams);
 	        }
-	        this.namedParameterJdbcTemplate.update("DELETE FROM pets WHERE id=:id", pet_params);
+	        this.namedParameterJdbcTemplate.update("DELETE FROM pets WHERE id=:id", petParams);
         }
-        this.namedParameterJdbcTemplate.update("DELETE FROM types WHERE id=:id", pettype_params);
+        this.namedParameterJdbcTemplate.update("DELETE FROM types WHERE id=:id", pettypeParams);
 	}
 
 }

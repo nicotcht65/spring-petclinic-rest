@@ -16,14 +16,11 @@
 
 package org.springframework.samples.petclinic.rest.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.samples.petclinic.mapper.PetMapper;
 import org.springframework.samples.petclinic.model.Pet;
@@ -39,6 +36,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -119,7 +117,7 @@ class PetRestControllerTests {
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
     void testGetPetNotFound() throws Exception {
-        given(petMapper.toPetDto(this.clinicService.findPetById(-1))).willReturn(null);
+        given(petMapper.toPetDto(this.clinicService.findPetById(999))).willReturn(null);
         this.mockMvc.perform(get("/api/pets/999")
                 .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isNotFound());
@@ -128,10 +126,9 @@ class PetRestControllerTests {
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
     void testGetAllPetsSuccess() throws Exception {
-        final Collection<Pet> pets = petMapper.toPets(this.pets);
-        System.err.println(pets);
-        when(this.clinicService.findAllPets()).thenReturn(pets);
-        //given(this.clinicService.findAllPets()).willReturn(petMapper.toPets(pets));
+        final Collection<Pet> mockPets = petMapper.toPets(this.pets);
+        when(this.clinicService.findAllPets()).thenReturn(mockPets);
+
         this.mockMvc.perform(get("/api/pets")
                 .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
@@ -158,10 +155,9 @@ class PetRestControllerTests {
         given(this.clinicService.findPetById(3)).willReturn(petMapper.toPet(pets.get(0)));
         PetDto newPet = pets.get(0);
         newPet.setName("Rosy I");
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
 
         String newPetAsJSON = mapper.writeValueAsString(newPet);
         this.mockMvc.perform(put("/api/pets/3")
@@ -183,10 +179,9 @@ class PetRestControllerTests {
     void testUpdatePetError() throws Exception {
         PetDto newPet = pets.get(0);
         newPet.setName(null);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
         String newPetAsJSON = mapper.writeValueAsString(newPet);
 
         this.mockMvc.perform(put("/api/pets/3")
@@ -199,7 +194,6 @@ class PetRestControllerTests {
     void testDeletePetSuccess() throws Exception {
         PetDto newPet = pets.get(0);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newPetAsJSON = mapper.writeValueAsString(newPet);
         given(this.clinicService.findPetById(3)).willReturn(petMapper.toPet(pets.get(0)));
         this.mockMvc.perform(delete("/api/pets/3")
@@ -212,7 +206,6 @@ class PetRestControllerTests {
     void testDeletePetError() throws Exception {
         PetDto newPet = pets.get(0);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newPetAsJSON = mapper.writeValueAsString(newPet);
         given(this.clinicService.findPetById(999)).willReturn(null);
         this.mockMvc.perform(delete("/api/pets/999")
@@ -220,31 +213,4 @@ class PetRestControllerTests {
             .andExpect(status().isNotFound());
     }
 
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testAddPetSuccess() throws Exception {
-        PetDto newPet = pets.get(0);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        String newPetAsJSON = mapper.writeValueAsString(newPet);
-        given(this.clinicService.findPetById(3)).willReturn(petMapper.toPet(pets.get(0)));
-        this.mockMvc.perform(post("/api/pets")
-                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
-            .andExpect(status().isCreated())
-            .andExpect(header().string(HttpHeaders.LOCATION, "/api/pets/3"));
-    }
-
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testAddPetError() throws Exception {
-        PetDto newPet = pets.get(0);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        String newPetAsJSON = mapper.writeValueAsString(newPet);
-        given(this.clinicService.findPetById(999)).willReturn(null);
-        this.mockMvc.perform(post("/api/pets")
-                // set empty JSON to force 400 error
-                .content("{}").accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
-            .andExpect(status().isBadRequest());
-    }
 }

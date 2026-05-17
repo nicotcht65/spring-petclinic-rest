@@ -16,6 +16,9 @@
 
 package org.springframework.samples.petclinic.rest.controller;
 
+import java.util.Collection;
+import java.util.List;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +29,12 @@ import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.rest.api.OwnersApi;
-import org.springframework.samples.petclinic.rest.dto.*;
+import org.springframework.samples.petclinic.rest.dto.OwnerDto;
+import org.springframework.samples.petclinic.rest.dto.OwnerFieldsDto;
+import org.springframework.samples.petclinic.rest.dto.PetDto;
+import org.springframework.samples.petclinic.rest.dto.PetFieldsDto;
+import org.springframework.samples.petclinic.rest.dto.VisitDto;
+import org.springframework.samples.petclinic.rest.dto.VisitFieldsDto;
 import org.springframework.samples.petclinic.service.ClinicService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -35,9 +43,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.transaction.Transactional;
-
-import java.util.Collection;
-import java.util.List;
 
 /**
  * @author Vitaliy Fedoriv
@@ -134,9 +139,12 @@ public class OwnerRestController implements OwnersApi {
     @PreAuthorize("hasRole(@roles.OWNER_ADMIN)")
     @Override
     public ResponseEntity<PetDto> addPetToOwner(Integer ownerId, PetFieldsDto petFieldsDto) {
+        Owner owner = this.clinicService.findOwnerById(ownerId);
+        if (owner == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
         HttpHeaders headers = new HttpHeaders();
         Pet pet = petMapper.toPet(petFieldsDto);
-        Owner owner = new Owner();
         owner.setId(ownerId);
         pet.setOwner(owner);
         pet.getType().setName(null);
@@ -145,6 +153,23 @@ public class OwnerRestController implements OwnersApi {
         headers.setLocation(UriComponentsBuilder.newInstance().path("/api/pets/{id}")
             .buildAndExpand(pet.getId()).toUri());
         return new ResponseEntity<>(petDto, headers, HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasRole(@roles.OWNER_ADMIN)")
+    @Override
+    public ResponseEntity<Void> updateOwnersPet(Integer ownerId, Integer petId, PetFieldsDto petFieldsDto) {
+        Owner currentOwner = this.clinicService.findOwnerById(ownerId);
+        if (currentOwner != null) {
+            Pet currentPet = this.clinicService.findPetById(petId);
+            if (currentPet != null) {
+                currentPet.setBirthDate(petFieldsDto.getBirthDate());
+                currentPet.setName(petFieldsDto.getName());
+                currentPet.setType(petMapper.toPetType(petFieldsDto.getType()));
+                this.clinicService.savePet(currentPet);
+                return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+            }
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
     @PreAuthorize("hasRole(@roles.OWNER_ADMIN)")

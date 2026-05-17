@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 package org.springframework.samples.petclinic.repository.jdbc;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -51,6 +50,7 @@ import java.util.Map;
  * @author Antoine Rey
  * @author Vitaliy Fedoriv
  */
+@DependsOnDatabaseInitialization
 @Repository
 @Profile("jdbc")
 public class JdbcOwnerRepositoryImpl implements OwnerRepository {
@@ -59,7 +59,6 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
 
     private SimpleJdbcInsert insertOwner;
 
-    @Autowired
     public JdbcOwnerRepositoryImpl(DataSource dataSource) {
 
         this.insertOwner = new SimpleJdbcInsert(dataSource)
@@ -173,23 +172,23 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
 	@Override
 	@Transactional
 	public void delete(Owner owner) throws DataAccessException {
-		Map<String, Object> owner_params = new HashMap<>();
-		owner_params.put("id", owner.getId());
+		Map<String, Object> ownerParams = new HashMap<>();
+		ownerParams.put("id", owner.getId());
         List<Pet> pets = owner.getPets();
         // cascade delete pets
         for (Pet pet : pets){
-        	Map<String, Object> pet_params = new HashMap<>();
-        	pet_params.put("id", pet.getId());
+        	Map<String, Object> petParams = new HashMap<>();
+        	petParams.put("id", pet.getId());
         	// cascade delete visits
         	List<Visit> visits = pet.getVisits();
             for (Visit visit : visits){
-            	Map<String, Object> visit_params = new HashMap<>();
-            	visit_params.put("id", visit.getId());
-            	this.namedParameterJdbcTemplate.update("DELETE FROM visits WHERE id=:id", visit_params);
+            	Map<String, Object> visitParams = new HashMap<>();
+            	visitParams.put("id", visit.getId());
+            	this.namedParameterJdbcTemplate.update("DELETE FROM visits WHERE id=:id", visitParams);
             }
-            this.namedParameterJdbcTemplate.update("DELETE FROM pets WHERE id=:id", pet_params);
+            this.namedParameterJdbcTemplate.update("DELETE FROM pets WHERE id=:id", petParams);
         }
-        this.namedParameterJdbcTemplate.update("DELETE FROM owners WHERE id=:id", owner_params);
+        this.namedParameterJdbcTemplate.update("DELETE FROM owners WHERE id=:id", ownerParams);
 	}
 
 

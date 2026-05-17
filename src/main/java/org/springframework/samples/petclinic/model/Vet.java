@@ -16,8 +16,6 @@
 package org.springframework.samples.petclinic.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.springframework.beans.support.MutableSortDefinition;
-import org.springframework.beans.support.PropertyComparator;
 
 import jakarta.persistence.*;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -55,7 +53,7 @@ public class Vet extends Person {
     @XmlElement
     public List<Specialty> getSpecialties() {
         List<Specialty> sortedSpecs = new ArrayList<>(getSpecialtiesInternal());
-        PropertyComparator.sort(sortedSpecs, new MutableSortDefinition("name", true, true));
+        sortedSpecs.sort(Comparator.comparing(Specialty::getName, String.CASE_INSENSITIVE_ORDER));
         return Collections.unmodifiableList(sortedSpecs);
     }
 

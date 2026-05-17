@@ -49,7 +49,7 @@ public class JpaOwnerRepositoryImpl implements OwnerRepository {
      * we do not need Visits at all and we only need one property from the Pet objects (the 'name' property).
      * There are some ways to improve it such as:
      * - creating a Ligtweight class (example here: https://community.jboss.org/wiki/LightweightClass)
-     * - Turning on lazy-loading and using an Open Session In View filter
+     * - Turning on lazy-loading and using open session in view pattern
      */
     @SuppressWarnings("unchecked")
     public Collection<Owner> findByLastName(String lastName) {

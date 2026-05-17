@@ -25,7 +25,7 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -53,6 +53,7 @@ import org.springframework.stereotype.Repository;
  * @author Michael Isvy
  * @author Vitaliy Fedoriv
  */
+@DependsOnDatabaseInitialization
 @Repository
 @Profile("jdbc")
 public class JdbcVetRepositoryImpl implements VetRepository {
@@ -61,7 +62,6 @@ public class JdbcVetRepositoryImpl implements VetRepository {
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 	private SimpleJdbcInsert insertVet;
 
-    @Autowired
     public JdbcVetRepositoryImpl(DataSource dataSource, JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
 		this.insertVet = new SimpleJdbcInsert(dataSource).withTableName("vets").usingGeneratedKeyColumns("id");
@@ -102,24 +102,24 @@ public class JdbcVetRepositoryImpl implements VetRepository {
         }
         return vets;
     }
-    
+
 	@Override
 	public Vet findById(int id) throws DataAccessException {
 		Vet vet;
 		try {
-			Map<String, Object> vet_params = new HashMap<>();
-			vet_params.put("id", id);
+			Map<String, Object> vetParams = new HashMap<>();
+			vetParams.put("id", id);
 			vet = this.namedParameterJdbcTemplate.queryForObject(
 					"SELECT id, first_name, last_name FROM vets WHERE id= :id",
-					vet_params,
+					vetParams,
 					BeanPropertyRowMapper.newInstance(Vet.class));
 
 			final List<Specialty> specialties = this.namedParameterJdbcTemplate.query(
-					"SELECT id, name FROM specialties", vet_params, BeanPropertyRowMapper.newInstance(Specialty.class));
+					"SELECT id, name FROM specialties", vetParams, BeanPropertyRowMapper.newInstance(Specialty.class));
 
 			final List<Integer> vetSpecialtiesIds = this.namedParameterJdbcTemplate.query(
 					"SELECT specialty_id FROM vet_specialties WHERE vet_id=:id",
-					vet_params,
+					vetParams,
 					new BeanPropertyRowMapper<Integer>() {
 						@Override
 						public Integer mapRow(ResultSet rs, int row) throws SQLException {
@@ -158,14 +158,14 @@ public class JdbcVetRepositoryImpl implements VetRepository {
 		this.namedParameterJdbcTemplate.update("DELETE FROM vet_specialties WHERE vet_id=:id", params);
 		this.namedParameterJdbcTemplate.update("DELETE FROM vets WHERE id=:id", params);
 	}
-	
+
 	private void updateVetSpecialties(Vet vet) throws DataAccessException {
 		Map<String, Object> params = new HashMap<>();
 		params.put("id", vet.getId());
 		this.namedParameterJdbcTemplate.update("DELETE FROM vet_specialties WHERE vet_id=:id", params);
 		for (Specialty spec : vet.getSpecialties()) {
 			params.put("spec_id", spec.getId());
-			if(!(spec.getId() == null)) {
+			if(spec.getId() != null) {
 				this.namedParameterJdbcTemplate.update("INSERT INTO vet_specialties VALUES (:id, :spec_id)", params);
 			}
 		}

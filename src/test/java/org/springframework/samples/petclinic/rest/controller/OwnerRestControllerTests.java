@@ -16,9 +16,8 @@
 
 package org.springframework.samples.petclinic.rest.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.dao.DataIntegrityViolationException;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,13 +41,16 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -94,7 +96,7 @@ class OwnerRestControllerTests {
         owners = new ArrayList<>();
 
         OwnerDto ownerWithPet = new OwnerDto();
-        owners.add(ownerWithPet.id(1).firstName("George").lastName("Franklin").address("110 W. Liberty St.").city("Madison").telephone("6085551023").addPetsItem(getTestPetWithIdAndName(ownerWithPet, 1, "Rosy")));
+        owners.add(ownerWithPet.id(1).firstName("George").lastName("Franklin").address("110 W. Liberty St.").city("Madison").telephone("6085551023").addPetsItem(getTestPetWithIdAndName(1, "Rosy")));
         OwnerDto owner = new OwnerDto();
         owners.add(owner.id(2).firstName("Betty").lastName("Davis").address("638 Cardinal Ave.").city("Sun Prairie").telephone("6085551749"));
         owner = new OwnerDto();
@@ -135,14 +137,14 @@ class OwnerRestControllerTests {
         visits.add(visit);
     }
 
-    private PetDto getTestPetWithIdAndName(final OwnerDto owner, final int id, final String name) {
+    private PetDto getTestPetWithIdAndName(final int id, final String name) {
         PetTypeDto petType = new PetTypeDto();
         PetDto pet = new PetDto();
-        pet.id(id).name(name).birthDate(LocalDate.now()).type(petType.id(2).name("dog")).addVisitsItem(getTestVisitForPet(pet, 1));
+        pet.id(id).name(name).birthDate(LocalDate.now()).type(petType.id(2).name("dog")).addVisitsItem(getTestVisitForPet(1));
         return pet;
     }
 
-    private VisitDto getTestVisitForPet(final PetDto pet, final int id) {
+    private VisitDto getTestVisitForPet(final int id) {
         VisitDto visit = new VisitDto();
         return visit.id(id).date(LocalDate.now()).description("test" + id);
     }
@@ -226,8 +228,6 @@ class OwnerRestControllerTests {
         OwnerDto newOwnerDto = owners.get(0);
         newOwnerDto.setId(null);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         String newOwnerAsJSON = mapper.writeValueAsString(newOwnerDto);
         this.mockMvc.perform(post("/api/owners")
                 .content(newOwnerAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -241,8 +241,6 @@ class OwnerRestControllerTests {
         newOwnerDto.setId(null);
         newOwnerDto.setFirstName(null);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         String newOwnerAsJSON = mapper.writeValueAsString(newOwnerDto);
         this.mockMvc.perform(post("/api/owners")
                 .content(newOwnerAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -263,8 +261,6 @@ class OwnerRestControllerTests {
         updatedOwnerDto.setCity("Madison");
         updatedOwnerDto.setTelephone("6085551023");
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         String newOwnerAsJSON = mapper.writeValueAsString(updatedOwnerDto);
         this.mockMvc.perform(put("/api/owners/" + ownerId)
                 .content(newOwnerAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -314,7 +310,6 @@ class OwnerRestControllerTests {
         OwnerDto newOwnerDto = owners.get(0);
         newOwnerDto.setFirstName("");
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newOwnerAsJSON = mapper.writeValueAsString(newOwnerDto);
         this.mockMvc.perform(put("/api/owners/1")
                 .content(newOwnerAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -326,7 +321,6 @@ class OwnerRestControllerTests {
     void testDeleteOwnerSuccess() throws Exception {
         OwnerDto newOwnerDto = owners.get(0);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newOwnerAsJSON = mapper.writeValueAsString(newOwnerDto);
         final Owner owner = ownerMapper.toOwner(owners.get(0));
         given(this.clinicService.findOwnerById(1)).willReturn(owner);
@@ -340,7 +334,6 @@ class OwnerRestControllerTests {
     void testDeleteOwnerError() throws Exception {
         OwnerDto newOwnerDto = owners.get(0);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
         String newOwnerAsJSON = mapper.writeValueAsString(newOwnerDto);
         given(this.clinicService.findOwnerById(999)).willReturn(null);
         this.mockMvc.perform(delete("/api/owners/999")
@@ -351,12 +344,13 @@ class OwnerRestControllerTests {
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
     void testCreatePetSuccess() throws Exception {
+        final Owner owner = ownerMapper.toOwner(owners.get(0));
+        given(this.clinicService.findOwnerById(1)).willReturn(owner);
         PetDto newPet = pets.get(0);
         newPet.setId(999);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
         String newPetAsJSON = mapper.writeValueAsString(newPet);
         System.err.println("--> newPetAsJSON=" + newPetAsJSON);
         this.mockMvc.perform(post("/api/owners/1/pets")
@@ -370,10 +364,9 @@ class OwnerRestControllerTests {
         PetDto newPet = pets.get(0);
         newPet.setId(null);
         newPet.setName(null);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.registerModule(new JavaTimeModule());
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
         String newPetAsJSON = mapper.writeValueAsString(newPet);
         this.mockMvc.perform(post("/api/owners/1/pets")
                 .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -382,12 +375,152 @@ class OwnerRestControllerTests {
 
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreatePetShouldNotExposeTechnicalDetails() throws Exception {
+        PetDto newPet = pets.get(0);
+        newPet.setId(null);
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        String technicalMessage = "could not execute statement; SQL [insert into pets ...]; constraint [fk_pet_owner]";
+        given(this.clinicService.findOwnerById(1)).willReturn(ownerMapper.toOwner(owners.get(0)));
+        doThrow(new DataIntegrityViolationException(technicalMessage)).when(this.clinicService).savePet(any());
+        this.mockMvc.perform(post("/api/owners/1/pets")
+                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.detail").value("The requested resource could not be processed due to a data constraint violation"));
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreatePetWithUnknownOwnerShouldReturnNotFound() throws Exception {
+        PetDto newPet = pets.get(0);
+        newPet.setId(null);
+        ObjectMapper mapper = JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        given(this.clinicService.findOwnerById(1000000)).willReturn(null);
+        this.mockMvc.perform(post("/api/owners/1000000/pets")
+                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreatePetWithNullTypeShouldReturnBadRequestWithGenericDetail() throws Exception {
+        PetDto newPet = pets.get(0);
+        newPet.setId(null);
+        newPet.setType(null);
+        ObjectMapper mapper = JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        this.mockMvc.perform(post("/api/owners/1/pets")
+                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.detail").value("The request contains invalid or missing parameters"))
+            .andExpect(jsonPath("$.title").value("MethodArgumentNotValidException"))
+            .andExpect(jsonPath("$.schemaValidationErrors").isArray())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].message").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].field").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].rejectedValue").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].defaultMessage").exists());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreatePetWithEmptyTypeNameShouldReturnBadRequestWithGenericDetail() throws Exception {
+        PetDto newPet = pets.get(0);
+        newPet.setId(null);
+        newPet.getType().setName("");
+        ObjectMapper mapper = JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        this.mockMvc.perform(post("/api/owners/1/pets")
+                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.detail").value("The request contains invalid or missing parameters"))
+            .andExpect(jsonPath("$.title").value("MethodArgumentNotValidException"))
+            .andExpect(jsonPath("$.schemaValidationErrors").isArray())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].message").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].field").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].rejectedValue").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].defaultMessage").exists());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreatePetWithNullTypeIdShouldReturnBadRequestWithGenericDetail() throws Exception {
+        PetDto newPet = pets.get(0);
+        newPet.setId(null);
+        newPet.getType().setId(null);
+        ObjectMapper mapper = JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        this.mockMvc.perform(post("/api/owners/1/pets")
+                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.detail").value("The request contains invalid or missing parameters"))
+            .andExpect(jsonPath("$.title").value("MethodArgumentNotValidException"))
+            .andExpect(jsonPath("$.schemaValidationErrors").isArray())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].message").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].field").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].rejectedValue").exists())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].defaultMessage").exists());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreatePetWithUnexpectedErrorShouldReturnInternalServerErrorWithGenericDetail() throws Exception {
+        PetDto newPet = pets.get(0);
+        newPet.setId(null);
+        ObjectMapper mapper = JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        given(this.clinicService.findOwnerById(1)).willReturn(ownerMapper.toOwner(owners.get(0)));
+        doThrow(new IllegalStateException("JDBC timeout while executing insert into pets"))
+            .when(this.clinicService).savePet(any());
+        this.mockMvc.perform(post("/api/owners/1/pets")
+                .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.detail").value("An unexpected error occurred while processing your request"))
+            .andExpect(jsonPath("$.title").value("IllegalStateException"))
+            .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreateOwnerWithUnexpectedErrorShouldReturnInternalServerErrorWithGenericDetail() throws Exception {
+        OwnerDto newOwnerDto = owners.get(0);
+        newOwnerDto.setId(null);
+        ObjectMapper mapper = new ObjectMapper();
+        String newOwnerAsJSON = mapper.writeValueAsString(newOwnerDto);
+        doThrow(new RuntimeException("Low-level persistence exception details"))
+            .when(this.clinicService).saveOwner(any());
+        this.mockMvc.perform(post("/api/owners")
+                .content(newOwnerAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.detail").value("An unexpected error occurred while processing your request"))
+            .andExpect(jsonPath("$.title").value("RuntimeException"))
+            .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
     void testCreateVisitSuccess() throws Exception {
         VisitDto newVisit = visits.get(0);
         newVisit.setId(999);
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         String newVisitAsJSON = mapper.writeValueAsString(visitMapper.toVisit(newVisit));
         System.out.println("newVisitAsJSON " + newVisitAsJSON);
         this.mockMvc.perform(post("/api/owners/1/pets/1/visits")
@@ -429,5 +562,64 @@ class OwnerRestControllerTests {
             .andExpect(status().isNotFound());
     }
 
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdateOwnersPetSuccess() throws Exception {
+        int ownerId = owners.get(0).getId();
+        int petId = pets.get(0).getId();
+        given(this.clinicService.findOwnerById(ownerId)).willReturn(ownerMapper.toOwner(owners.get(0)));
+        given(this.clinicService.findPetById(petId)).willReturn(petMapper.toPet(pets.get(0)));
+        PetDto updatedPetDto = pets.get(0);
+        updatedPetDto.setName("Rex");
+        updatedPetDto.setBirthDate(LocalDate.of(2020, 1, 15));
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String updatedPetAsJSON = mapper.writeValueAsString(updatedPetDto);
+        this.mockMvc.perform(put("/api/owners/" + ownerId + "/pets/" + petId)
+                .content(updatedPetAsJSON)
+                .accept(MediaType.APPLICATION_JSON_VALUE)
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdateOwnersPetOwnerNotFound() throws Exception {
+        int ownerId = 0;
+        int petId = pets.get(0).getId();
+        given(this.clinicService.findOwnerById(ownerId)).willReturn(null);
+        PetDto petDto = pets.get(0);
+        petDto.setName("Thor");
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String updatedPetAsJSON = mapper.writeValueAsString(petDto);
+        this.mockMvc.perform(put("/api/owners/" + ownerId + "/pets/" + petId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatedPetAsJSON))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdateOwnersPetPetNotFound() throws Exception {
+        int ownerId = owners.get(0).getId();
+        int petId = 0;
+        given(this.clinicService.findOwnerById(ownerId)).willReturn(ownerMapper.toOwner(owners.get(0)));
+        given(this.clinicService.findPetById(petId)).willReturn(null);
+        PetDto petDto = pets.get(0);
+        petDto.setName("Ghost");
+        petDto.setBirthDate(LocalDate.of(2020, 1, 1));
+        ObjectMapper mapper =  JsonMapper.builder()
+            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
+            .build();
+        String updatedPetAsJSON = mapper.writeValueAsString(petDto);
+        this.mockMvc.perform(put("/api/owners/" + ownerId + "/pets/" + petId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatedPetAsJSON))
+            .andExpect(status().isNotFound());
+    }
 
 }

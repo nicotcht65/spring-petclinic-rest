@@ -21,11 +21,10 @@ import java.util.List;
 
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-
+import tools.jackson.core.JacksonException;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * @author Vitaliy Fedoriv
@@ -49,7 +48,7 @@ public class BindingErrorsResponse {
         }
         boolean bothIdsSpecified = pathId != null && bodyId != null;
         if (bothIdsSpecified && !pathId.equals(bodyId)) {
-            addBodyIdError(bodyId, String.format("does not match pathId: %d", pathId));
+            addBodyIdError(bodyId, "does not match pathId: %d".formatted(pathId));
         }
     }
 
@@ -62,7 +61,7 @@ public class BindingErrorsResponse {
         addError(error);
     }
 
-	private final List<BindingError> bindingErrors = new ArrayList<BindingError>();
+	private final List<BindingError> bindingErrors = new ArrayList<>();
 
 	public void addError(BindingError bindingError) {
 		this.bindingErrors.add(bindingError);
@@ -80,12 +79,13 @@ public class BindingErrorsResponse {
 	}
 
 	public String toJSON() {
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
+		ObjectMapper mapper = JsonMapper.builder()
+                .changeDefaultVisibility(v -> v.withFieldVisibility(Visibility.ANY))
+                    .build();
 		String errorsAsJSON = "";
 		try {
 			errorsAsJSON = mapper.writeValueAsString(bindingErrors);
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			e.printStackTrace();
 		}
 		return errorsAsJSON;
@@ -122,8 +122,8 @@ public class BindingErrorsResponse {
 			this.fieldValue = fieldValue;
 		}
 
-		protected void setErrorMessage(String error_message) {
-			this.errorMessage = error_message;
+		protected void setErrorMessage(String errorMessage) {
+			this.errorMessage = errorMessage;
 		}
 
 		@Override
