@@ -15,40 +15,44 @@
  */
 package org.springframework.samples.petclinic.repository.jdbc;
 
-import org.springframework.data.jdbc.core.OneToManyResultSetExtractor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.samples.petclinic.model.Visit;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * {@link ResultSetExtractor} implementation by using the
- * {@link OneToManyResultSetExtractor} of Spring Data Core JDBC Extensions.
+ * {@link ResultSetExtractor} that maps a one-to-many relationship between
+ * {@link JdbcPet} (root) and {@link Visit} (child) from a single joined query.
  */
-public class JdbcPetVisitExtractor extends
-    OneToManyResultSetExtractor<JdbcPet, Visit, Integer> {
+public class JdbcPetVisitExtractor implements ResultSetExtractor<List<JdbcPet>> {
 
-    public JdbcPetVisitExtractor() {
-        super(new JdbcPetRowMapper(), new JdbcVisitRowMapper());
-    }
+    private final JdbcPetRowMapper petRowMapper = new JdbcPetRowMapper();
+    private final JdbcVisitRowMapper visitRowMapper = new JdbcVisitRowMapper();
 
     @Override
-    protected Integer mapPrimaryKey(ResultSet rs) throws SQLException {
-        return rs.getInt("pets_id");
-    }
-
-    @Override
-    protected Integer mapForeignKey(ResultSet rs) throws SQLException {
-        if (rs.getObject("visits_pet_id") == null) {
-            return null;
-        } else {
-            return rs.getInt("visits_pet_id");
+    public List<JdbcPet> extractData(ResultSet rs) throws SQLException, DataAccessException {
+        Map<Integer, JdbcPet> petMap = new LinkedHashMap<>();
+        int rowNum = 0;
+        while (rs.next()) {
+            Integer petId = rs.getInt("pets_id");
+            JdbcPet pet = petMap.get(petId);
+            if (pet == null) {
+                pet = petRowMapper.mapRow(rs, rowNum);
+                petMap.put(petId, pet);
+            }
+            Integer visitPetId = rs.getObject("visits_pet_id") != null ? rs.getInt("visits_pet_id") : null;
+            if (visitPetId != null) {
+                Visit visit = visitRowMapper.mapRow(rs, rowNum);
+                pet.addVisit(visit);
+            }
+            rowNum++;
         }
-    }
-
-    @Override
-    protected void addChild(JdbcPet root, Visit child) {
-        root.addVisit(child);
+        return new ArrayList<>(petMap.values());
     }
 }
