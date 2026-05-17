@@ -22,10 +22,9 @@ import java.util.List;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * @author Vitaliy Fedoriv
@@ -80,12 +79,14 @@ public class BindingErrorsResponse {
 	}
 
 	public String toJSON() {
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
+		JsonMapper mapper = JsonMapper.builder()
+			.changeDefaultVisibility(vc ->
+				vc.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+			.build();
 		String errorsAsJSON = "";
 		try {
 			errorsAsJSON = mapper.writeValueAsString(bindingErrors);
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			e.printStackTrace();
 		}
 		return errorsAsJSON;
