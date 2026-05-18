@@ -16,7 +16,7 @@
 
 package org.springframework.samples.petclinic.rest.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -173,7 +173,7 @@ class PetTypeRestControllerTests {
     void testCreatePetTypeSuccess() throws Exception {
     	PetType newPetType = petTypes.get(0);
     	newPetType.setId(null);
-    	ObjectMapper mapper = new ObjectMapper();
+    	JsonMapper mapper = JsonMapper.builder().build();
         String newPetTypeAsJSON = mapper.writeValueAsString(petTypeMapper.toPetTypeFieldsDto(newPetType));
     	this.mockMvc.perform(post("/api/pettypes")
     		.content(newPetTypeAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -186,7 +186,7 @@ class PetTypeRestControllerTests {
     	PetType newPetType = petTypes.get(0);
     	newPetType.setId(null);
     	newPetType.setName(null);
-    	ObjectMapper mapper = new ObjectMapper();
+    	JsonMapper mapper = JsonMapper.builder().build();
         String newPetTypeAsJSON = mapper.writeValueAsString(petTypeMapper.toPetTypeDto(newPetType));
     	this.mockMvc.perform(post("/api/pettypes")
         		.content(newPetTypeAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -199,7 +199,7 @@ class PetTypeRestControllerTests {
     	given(this.clinicService.findPetTypeById(2)).willReturn(petTypes.get(1));
     	PetType newPetType = petTypes.get(1);
     	newPetType.setName("dog I");
-    	ObjectMapper mapper = new ObjectMapper();
+    	JsonMapper mapper = JsonMapper.builder().build();
         String newPetTypeAsJSON = mapper.writeValueAsString(petTypeMapper.toPetTypeDto(newPetType));
     	this.mockMvc.perform(put("/api/pettypes/2")
     		.content(newPetTypeAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -219,7 +219,7 @@ class PetTypeRestControllerTests {
     void testUpdatePetTypeError() throws Exception {
     	PetType newPetType = petTypes.get(0);
     	newPetType.setName("");
-    	ObjectMapper mapper = new ObjectMapper();
+    	JsonMapper mapper = JsonMapper.builder().build();
         String newPetTypeAsJSON = mapper.writeValueAsString(petTypeMapper.toPetTypeDto(newPetType));
     	this.mockMvc.perform(put("/api/pettypes/1")
     		.content(newPetTypeAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -230,7 +230,7 @@ class PetTypeRestControllerTests {
     @WithMockUser(roles="VET_ADMIN")
     void testDeletePetTypeSuccess() throws Exception {
     	PetType newPetType = petTypes.get(0);
-    	ObjectMapper mapper = new ObjectMapper();
+    	JsonMapper mapper = JsonMapper.builder().build();
     	String newPetTypeAsJSON = mapper.writeValueAsString(newPetType);
     	given(this.clinicService.findPetTypeById(1)).willReturn(petTypes.get(0));
     	this.mockMvc.perform(delete("/api/pettypes/1")
@@ -242,7 +242,7 @@ class PetTypeRestControllerTests {
     @WithMockUser(roles="VET_ADMIN")
     void testDeletePetTypeError() throws Exception {
     	PetType newPetType = petTypes.get(0);
-    	ObjectMapper mapper = new ObjectMapper();
+    	JsonMapper mapper = JsonMapper.builder().build();
         String newPetTypeAsJSON = mapper.writeValueAsString(petTypeMapper.toPetTypeDto(newPetType));
     	given(this.clinicService.findPetTypeById(999)).willReturn(null);
     	this.mockMvc.perform(delete("/api/pettypes/999")

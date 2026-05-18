@@ -1,6 +1,6 @@
 package org.springframework.samples.petclinic.rest.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -52,7 +52,7 @@ class UserRestControllerTests {
         user.setPassword("password");
         user.setEnabled(true);
         user.addRole("OWNER_ADMIN");
-        ObjectMapper mapper = new ObjectMapper();
+        JsonMapper mapper = JsonMapper.builder().build();
         String newVetAsJSON = mapper.writeValueAsString(userMapper.toUserDto(user));
         this.mockMvc.perform(post("/api/users")
             .content(newVetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
@@ -66,7 +66,7 @@ class UserRestControllerTests {
         user.setUsername(""); // set empty username to force 400 error
         user.setPassword("password");
         user.setEnabled(true);
-        ObjectMapper mapper = new ObjectMapper();
+        JsonMapper mapper = JsonMapper.builder().build();
         String newVetAsJSON = mapper.writeValueAsString(userMapper.toUserDto(user));
         this.mockMvc.perform(post("/api/users")
             .content(newVetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
